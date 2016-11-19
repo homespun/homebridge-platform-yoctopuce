@@ -150,7 +150,7 @@ var Hub = function (platform, hubId, service) {
   self.listener = listener.singleton(platform.options)
   self.sensors = []
 
-  self._prime(function (err) {
+  self._configure(function (err) {
     if (err) return self.platform.log.error('prime', underscore.extend({ hubId: self.hubId }, err))
 
     self.listener.on(self.event.eventName, function (options, message) {
@@ -204,7 +204,7 @@ var Hub = function (platform, hubId, service) {
   self.platform.log('discovered hub', underscore.pick(self, [ 'name', 'manufacturer', 'model', 'serialNumber' ]))
 }
 
-Hub.prototype._prime = function (callback) {
+Hub.prototype._configure = function (callback) {
   var self = this
 
   roundTrip({ location: self.location, logger: self.platform.log }, { path: '/api.json' }, function (err, response, result) {
@@ -248,6 +248,7 @@ Hub.prototype._prime = function (callback) {
 
             if (netmask.contains(self.rinfo.host)) location = server.location
           })
+          if (!location) throw new Error('Wait. What?!? No interfaces in common with hub ', self.name)
           entry.value = location + self.event.path
           break
 
@@ -374,7 +375,7 @@ Sensor.prototype._update = function (readings) {
 
      , pressure:
         function () {
-          setCharacteristic(CommunityTypes.AtmosphericPressureSensor, CommunityTypes.AtmosphericPressureLevel, 'light')
+          setCharacteristic(CommunityTypes.AtmosphericPressureSensor, CommunityTypes.AtmosphericPressureLevel, 'pressure')
         }
 
     , temperature:
@@ -499,8 +500,8 @@ Sensor.prototype._getState = function (property, callback) {
   switch (property) {
     case 'co_detected':
       key = 'co'
-      abnormal = Characteristic.CarbonDioxideDetected.CO_LEVELS_ABNORMAL
-      state = Characteristic.CarbonDioxideDetected.CO_LEVELS_NORMAL
+      abnormal = Characteristic.CarbonMonoxideDetected.CO_LEVELS_ABNORMAL
+      state = Characteristic.CarbonMonoxideDetected.CO_LEVELS_NORMAL
       break
 
     case 'co2_detected':

@@ -1,5 +1,5 @@
 { "name"                         : "homebridge-platform-yoctopuce"
-, "version"                      : "0.1.1"
+, "version"                      : "0.1.2"
 , "description"                  : "A Yoctopuce.com platform plugin for Homebridge: https://github.com/nfarina/homebridge"
 , "main"                         : "index.js"
 , "scripts"                      : { "lint" : "jshint package.json *.js" }
