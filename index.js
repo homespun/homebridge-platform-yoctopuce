@@ -2,6 +2,7 @@
 
 var discovery   = require('homespun-discovery').observers.ssdp
   , listener    = require('homespun-discovery').listeners.http
+  , Netmask     = require('netmask').Netmask
   , querystring = require('querystring')
   , roundTrip   = require('homespun-discovery').utilities.roundtrip
   , sensorTypes = require('homespun-discovery').utilities.sensortypes
@@ -234,7 +235,7 @@ Hub.prototype._prime = function (callback) {
                   ]
 
     var f = function (i) {
-      var entry, query
+      var entry, location, query
 
       if (i >= entries.length) return callback()
 
@@ -242,7 +243,12 @@ Hub.prototype._prime = function (callback) {
       switch (entry.param) {
         case 'callbackUrl':
           self.event = self.listener.addEvent('POST')
-          entry.value = self.event.locations[0] + self.event.path
+          self.event.servers.forEach(function (server) {
+            var netmask = new Netmask(server.ifentry.address + '/' + server.ifentry.netmask)
+
+            if (netmask.contains(self.rinfo.host)) location = server.location
+          })
+          entry.value = location + self.event.path
           break
 
         case 'persistentSettings':
