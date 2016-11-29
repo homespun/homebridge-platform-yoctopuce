@@ -1,21 +1,27 @@
 /* jshint asi: true */
 
 var discovery   = require('homespun-discovery').observers.ssdp
+  , homespun    = require('homespun-discovery')
+  , inherits    = require('util').inherits
   , listener    = require('homespun-discovery').listeners.http
   , Netmask     = require('netmask').Netmask
   , querystring = require('querystring')
-  , roundTrip   = require('homespun-discovery').utilities.roundtrip
-  , sensorTypes = require('homespun-discovery').utilities.sensortypes
+  , roundTrip   = homespun.utilities.roundtrip
+  , pushsensor  = homespun.utilities.pushsensor
+  , PushSensor  = pushsensor.Sensor
+  , sensorTypes = homespun.utilities.sensortypes
   , underscore  = require('underscore')
   , url         = require('url')
   , xml2js      = require('xml2js')
   , yapi        = require('yoctolib')
+
 
 var Accessory
   , Service
   , Characteristic
   , CommunityTypes
   , UUIDGen
+  , PushSensor
 
 module.exports = function (homebridge) {
   Accessory      = homebridge.platformAccessory
@@ -24,7 +30,8 @@ module.exports = function (homebridge) {
   CommunityTypes = require('hap-nodejs-community-types')(homebridge)
   UUIDGen        = homebridge.hap.uuid
 
- homebridge.registerPlatform('homebridge-platform-yoctopuce', 'Yoctopuce', Yoctopuce, true)
+  pushsensor.init(homebridge)
+  homebridge.registerPlatform('homebridge-platform-yoctopuce', 'Yoctopuce', Yoctopuce, true)
 }
 
 
@@ -131,6 +138,7 @@ Yoctopuce.prototype.configureAccessory = function (accessory) {
   self.log('configureAccessory', underscore.pick(accessory, [ 'UUID', 'displayName' ]))
 }
 
+
 var Hub = function (platform, hubId, service) {
   var self = this
 
@@ -194,6 +202,7 @@ var Hub = function (platform, hubId, service) {
           self.sensors[module.serialNumber] = sensor
         }
 
+        sensor.readings = readings
         sensor._update.bind(sensor)(readings)
       })
     })
@@ -301,246 +310,8 @@ Hub.prototype._normalize = function (name, value) {
 
 
 var Sensor = function (hub, sensorId, service) {
-  var self = this
+  if (!(this instanceof Sensor)) return new Sensor(hub, sensorId, service)
 
-  var accessory
-
-  if (!(self instanceof Sensor)) return new Sensor(hub, sensorId, service)
-
-  self.hub = hub
-  self.sensorId = sensorId
-
-  self.name = service.properties.name
-  self.manufacturer = service.properties.manufacturer
-  self.model = service.properties.model
-  self.serialNumber = service.properties.serialNumber
-  self.firmwareRevision = service.properties.firmwareRevision
-  self.hardwareRevision = service.properties.hardwareRevision
-
-  self.capabilities = service.capabilities  
-
-  self.uuid = UUIDGen.generate(sensorId)
-
-  accessory = self.hub.platform.discoveries[self.uuid]
-  if (!accessory) return self.hub.platform._addAccessory(self)
-
-  delete self.hub.platform.discoveries[self.uuid]
-  self.attachAccessory(accessory)
-  accessory.updateReachability(true)
+  PushSensor.call(this, hub.platform, sensorId, service)
 }
-
-Sensor.prototype._update = function (readings) {
-  var self = this
-
-  var accessory = self.accessory
-
-  var setCharacteristic = function (P, Q, property) {
-    var service = accessory.getService(P)
-
-    if (!service) return self.hub.platform.log.warn('update: no Service for ' + property)
-
-    self._getState(property, function (err, value) { service.setCharacteristic(Q, value) })
-  }
-
-  self.readings = readings
-  underscore.keys(readings).forEach(function (key) {
-    var f =
-    { co:
-        function () {
-          setCharacteristic(Service.CarbonMonoxideSensor, Characteristic.CarbonMonoxideDetected, 'co_detected')
-          setCharacteristic(Service.CarbonMonoxideSensor, Characteristic.CarbonMonoxideLevel, 'co')
-        }
-
-     , co2:
-        function () {
-          setCharacteristic(Service.CarbonDioxideSensor, Characteristic.CarbonDioxideDetected, 'co2_detected')
-          setCharacteristic(Service.CarbonDioxideSensor, Characteristic.CarbonDioxideLevel, 'co2')
-        }
-
-     , humidity:
-        function () {
-          setCharacteristic(Service.HumiditySensor, Characteristic.CurrentRelativeHumidity, 'humidity')
-        }
-
-     , light:
-        function () {
-          setCharacteristic(Service.LightSensor, Characteristic.CurrentAmbientLightLevel, 'light')
-        }
-
-     , no2:
-        function () {
-          setCharacteristic(CommunityTypes.NitrogenDioxideSensor, CommunityTypes.NitrogenDioxideDetected, 'no2_detected')
-          setCharacteristic(CommunityTypes.NitrogenDioxideSensor, CommunityTypes.NitrogenDioxideLevel, 'no2')
-        }
-
-     , pressure:
-        function () {
-          setCharacteristic(CommunityTypes.AtmosphericPressureSensor, CommunityTypes.AtmosphericPressureLevel, 'pressure')
-        }
-
-    , temperature:
-        function () {
-           setCharacteristic(Service.TemperatureSensor, Characteristic.CurrentTemperature, 'temperature')
-        }
-    }[key]
-    if (f) f()
-  })
-}
-
-Sensor.prototype.attachAccessory = function (accessory) {
-  this.accessory = accessory
-  this._setServices(accessory)
-  this.hub.platform.log('attachAccessory',
-                        underscore.pick(this, [ 'uuid', 'name', 'manufacturer', 'model', 'serialNumber', 'firmwareRevision' ]))
-}
-
-Sensor.prototype._setServices = function (accessory) {
-  var self = this
-
-  var findOrCreateService = function (P, callback) {
-    var newP
-    var service = accessory.getService(P)
-
-    if (!service) {
-      newP = true
-      service = new P()
-    }
-    callback(service)
-
-    if (newP) accessory.addService(service, self.name)
-  }
-
-  findOrCreateService(Service.AccessoryInformation, function (service) {
-    service.setCharacteristic(Characteristic.Name, self.name)
-           .setCharacteristic(Characteristic.Manufacturer, self.manufacturer)
-           .setCharacteristic(Characteristic.Model, self.model)
-           .setCharacteristic(Characteristic.SerialNumber, self.serialNumber)
-           .setCharacteristic(Characteristic.FirmwareRevision, self.firmwareRevision)
-           .setCharacteristic(Characteristic.HardwareRevision, self.hardwareRevision)
-  })
-
-  underscore.keys(self.capabilities).forEach(function (key) {
-    var f =
-    { co:
-        function () {
-          findOrCreateService(Service.CarbonMonoxideSensor, function (service) {
-            service.setCharacteristic(Characteristic.Name, self.name + ' Carbon Monoxide')
-            service.getCharacteristic(Characteristic.CarbonMonoxideDetected)
-                   .on('get', function (callback) { self._getState.bind(self)('co_detected', callback) })
-            service.getCharacteristic(Characteristic.CarbonMonoxideLevel)
-                   .on('get', function (callback) { self._getState.bind(self)('co', callback) })
-           })
-         }
-
-    , co2:
-        function () {
-          findOrCreateService(Service.CarbonDioxideSensor, function (service) {
-            service.setCharacteristic(Characteristic.Name, self.name + ' Carbon Dioxide')
-            service.getCharacteristic(Characteristic.CarbonDioxideDetected)
-                   .on('get', function (callback) { self._getState.bind(self)('co2_detected', callback) })
-            service.getCharacteristic(Characteristic.CarbonDioxideLevel)
-                   .on('get', function (callback) { self._getState.bind(self)('co2', callback) })
-           })
-         }
-
-     , humidity:
-        function () {
-          findOrCreateService(Service.HumiditySensor, function (service) {
-            service.setCharacteristic(Characteristic.Name, self.name + ' Humidity')
-            service.getCharacteristic(Characteristic.CurrentRelativeHumidity)
-                   .on('get', function (callback) { self._getState.bind(self)('humidity', callback) })
-           })
-         }
-
-     , light:
-        function () {
-          findOrCreateService(Service.LightSensor, function (service) {
-            service.setCharacteristic(Characteristic.Name, self.name + ' Light')
-            service.getCharacteristic(Characteristic.CurrentAmbientLightLevel)
-                   .on('get', function (callback) { self._getState.bind(self)('light', callback) })
-           })
-         }
-
-    , no2:
-        function () {
-          findOrCreateService(CommunityTypes.NitrogenDioxideSensor, function (service) {
-            service.setCharacteristic(Characteristic.Name, self.name + ' Nitrogen Dioxide')
-            service.getCharacteristic(CommunityTypes.NitrogenDioxideDetected)
-                   .on('get', function (callback) { self._getState.bind(self)('no2_detected', callback) })
-            service.getCharacteristic(CommunityTypes.NitrogenDioxideLevel)
-                   .on('get', function (callback) { self._getState.bind(self)('no2', callback) })
-           })
-         }
-
-     , pressure:
-        function () {
-          findOrCreateService(CommunityTypes.AtmosphericPressureSensor, function (service) {
-            service.setCharacteristic(Characteristic.Name, self.name + ' Atmospheric Pressure')
-            service.getCharacteristic(CommunityTypes.AtmosphericPressureLevel)
-                   .on('get', function (callback) { self._getState.bind(self)('pressure', callback) })
-           })
-         }
-
-    , temperature:
-        function () {
-          findOrCreateService(Service.TemperatureSensor, function (service) {
-            service.setCharacteristic(Characteristic.Name, self.name + ' Temperature')
-            service.getCharacteristic(Characteristic.CurrentTemperature)
-                   .on('get', function (callback) { self._getState.bind(self)('temperature', callback) })
-          })
-        }
-    }[key] || function () { self.hub.platform.log.warn('setServices: no Service for ' + key) }
-    f()
-  })
-}
-
-Sensor.prototype._getState = function (property, callback) {
-  var abnormal, capability, key, state, value
-
-  switch (property) {
-    case 'co_detected':
-      key = 'co'
-      abnormal = Characteristic.CarbonMonoxideDetected.CO_LEVELS_ABNORMAL
-      state = Characteristic.CarbonMonoxideDetected.CO_LEVELS_NORMAL
-      break
-
-    case 'co2_detected':
-      key = 'co2'
-      abnormal = Characteristic.CarbonDioxideDetected.CO2_LEVELS_ABNORMAL
-      state = Characteristic.CarbonDioxideDetected.CO2_LEVELS_NORMAL
-      break
-
-    case 'no2_detected':
-      key = 'no2'
-      abnormal = CommunityTypes.NitrogenDioxideDetected.NO2_LEVELS_ABNORMAL
-      state = CommunityTypes.NitrogenDioxideDetected.NO2_LEVELS_NORMAL
-      break
-
-    default:
-      return callback(null, this.readings[property])
-  }
-  capability = this.capabilities[key]
-  value = this.readings[key]
-
-  if (!capability.readings) return callback(null, state)
-  
-  capability.readings.forEach(function (reading) {
-    if ((reading.category !== 'reading') || (!reading.condition) || (!reading.condition.operator)
-          || (typeof reading.condition.value === 'undefined')) return
-
-    switch (reading.condition.operator) {
-      case '>':
-        if (value > reading.value) state = abnormal
-        break
-
-      case '<':
-        if (value < reading.value) state = abnormal
-        break
-
-      default:
-        break
-    }
-  })
-
-  callback(null, state)
-}
+inherits(Sensor, PushSensor);
