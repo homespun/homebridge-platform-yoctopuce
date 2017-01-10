@@ -1,14 +1,14 @@
-/* jshint asi: true */
+/* jshint asi: true, node: true, laxbreak: true, laxcomma: true, undef: true, unused: true */
 
 var discovery   = require('homespun-discovery').observers.ssdp
   , homespun    = require('homespun-discovery')
   , inherits    = require('util').inherits
   , listener    = require('homespun-discovery').listeners.http
   , Netmask     = require('netmask').Netmask
-  , querystring = require('querystring')
-  , roundTrip   = homespun.utilities.roundtrip
   , pushsensor  = homespun.utilities.pushsensor
   , PushSensor  = pushsensor.Sensor
+  , querystring = require('querystring')
+  , roundTrip   = homespun.utilities.roundtrip
   , sensorTypes = homespun.utilities.sensortypes
   , underscore  = require('underscore')
   , url         = require('url')
@@ -21,7 +21,6 @@ var Accessory
   , Characteristic
   , CommunityTypes
   , UUIDGen
-  , PushSensor
 
 module.exports = function (homebridge) {
   Accessory      = homebridge.platformAccessory
@@ -43,9 +42,10 @@ var Yoctopuce = function (log, config, api) {
   this.api = api
 
   this.options = underscore.defaults(this.config.options || {}, { verboseP: false })
+
+  this.parser = new xml2js.Parser()
   this.discoveries = {}
   this.hubs = {}
-  this.parser = new xml2js.Parser()
 
   discovery.init()
   listener.init()
@@ -115,11 +115,13 @@ Yoctopuce.prototype._addAccessory = function (sensor) {
     callback()
   })
 
-  sensor.attachAccessory.bind(sensor)(accessory)
+  if (sensor.attachAccessory.bind(sensor)(accessory)) self.api.updatePlatformAccessories([ accessory ])
 
-  self.api.registerPlatformAccessories('homebridge-platform-yoctopuce', 'Yoctopuce', [ accessory ])
-  self.log('addAccessory', underscore.pick(sensor,
-                                           [ 'uuid', 'name', 'manufacturer', 'model', 'serialNumber', 'firmwareRevision' ]))
+  if (!self.discoveries[accessory.UUID]) {
+    self.api.registerPlatformAccessories('homebridge-platform-yoctopuce', 'Yoctopuce', [ accessory ])
+    self.log('addAccessory', underscore.pick(sensor,
+                                             [ 'uuid', 'name', 'manufacturer', 'model', 'serialNumber', 'firmwareRevision' ]))
+  }
 }
 
 Yoctopuce.prototype.configurationRequestHandler = function (context, request, callback) {/* jshint unused: false */
@@ -172,9 +174,9 @@ var Hub = function (platform, hubId, service) {
 
       underscore.keys(json).forEach(function (key) {
         var module, properties, sensor
-        var capabilities = {}
-        var entry = json[key]
-        var readings = {}
+          , capabilities = {}
+          , entry = json[key]
+          , readings = {}
 
         if (key.indexOf('/bySerial/') !== 0) return
 
@@ -303,8 +305,8 @@ Hub.prototype._normalize = function (name, value) {
         }[name]
   if (key) return underscore.object([ key ], [ parseFloat(value.advertisedValue) ])
 
-  if (([ 'dataLogger', 'files', 'module', 'network', 'services' ].indexOf(name) !== -1)
-        || (name.indexOf('hubPort') === 0)) return
+  if (([ 'dataLogger', 'files', 'module', 'network', 'services' ].indexOf(name) !== -1) ||
+        (name.indexOf('hubPort') === 0)) return
   this.platform.log.warn('normalize: no property for ' + name)
 }
 
