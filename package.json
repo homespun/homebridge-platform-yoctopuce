@@ -1,6 +1,10 @@
 { "name"                         : "homebridge-platform-yoctopuce"
 , "version"                      : "0.2.7"
 , "description"                  : "A Yoctopuce.com platform plugin for Homebridge: https://github.com/nfarina/homebridge"
+, "author"                       :
+  { "name"                       : "Marshall Rose"
+  , "email"                      : "mrose17@homespun.io"
+  }
 , "main"                         : "index.js"
 , "scripts"                      : { "lint" : "jshint package.json *.js" }
 , "license"                      : "MIT"
