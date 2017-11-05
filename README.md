@@ -19,9 +19,17 @@ If so, please try
 
 and try
 
-    % sudo npm install -g homebridge-platform-ring-video-doorbell
+    % sudo npm install -g homebridge-platform-yoctopuce
 
 again!
+
+NB: If you install homebridge like this:
+
+    sudo npm install -g --unsafe-perm homebridge
+
+Then all subsequent installations must be like this:
+
+    sudo npm install -g --unsafe-perm homebridge-platform-yoctopuce
 
 # Configuration
 If you're already running `homebridge` on your system,
