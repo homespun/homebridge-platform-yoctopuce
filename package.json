@@ -1,5 +1,5 @@
 { "name"                         : "homebridge-platform-yoctopuce"
-, "version"                      : "0.2.7"
+, "version"                      : "0.2.8"
 , "description"                  : "A Yoctopuce.com platform plugin for Homebridge: https://github.com/nfarina/homebridge"
 , "author"                       :
   { "name"                       : "Marshall Rose"
@@ -20,7 +20,7 @@
   }
 , "dependencies"                 :
   { "hap-nodejs-community-types" : "https://github.com/homespun/hap-nodejs-community-types.git"
-  , "homespun-discovery"         : "0.1.21"
+  , "homespun-discovery"         : "0.1.26"
   , "netmask"                    : "1.0.6"
   , "underscore"                 : "1.8.3"
   , "uuid"                       : "3.0.0"

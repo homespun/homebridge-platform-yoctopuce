@@ -302,6 +302,7 @@ Hub.prototype._normalize = function (name, value) {
         , no2           : 'no2'
         , pressure      : 'pressure'
         , temperature   : 'temperature'
+        , voc           : 'voc'
         }[name]
   if (key) return underscore.object([ key ], [ parseFloat(value.advertisedValue) ])
 
