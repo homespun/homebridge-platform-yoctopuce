@@ -41,18 +41,21 @@ so it will automatically look for Yoctopuce Hubs on the local network that respo
 If this is your first time with `homebridge`,
 this will suffice:
 
-    { "bridge":
-      { "name": "Homebridge"
-      , "username": "CC:22:3D:E3:CE:30"
-      , "port": 51826
-      , "pin": "031-45-154"
+    { "bridge"       :
+      { "name"       : "Homebridge"
+      , "username"   : "CC:22:3D:E3:CE:30"
+      , "port"       : 51826
+      , "pin"        : "031-45-154"
       }
-    , "description": ""
-    , "accessories":
+    , "description"  : ""
+    , "accessories"  :
       [
       ]
-    , "platforms":
+    , "platforms"    :
       [
+        { "platform" : "homebridge-platform-yoctopuce"
+        , "name"     : "Yoctopuce"
+        }
       ]
     }
 
