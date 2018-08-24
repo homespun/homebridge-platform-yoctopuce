@@ -1,5 +1,5 @@
 # homebridge-platform-yoctopuce
-A [Yoctopuce.com](https://yoctopuce) platform plugin for [Homebridge](https://github.com/nfarina/homebridge).
+A [Yoctopuce.com](https://yoctopuce.com) platform plugin for [Homebridge](https://github.com/nfarina/homebridge).
 
 # Installation
 Run these commands:
