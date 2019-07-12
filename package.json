@@ -29,6 +29,7 @@
   "dependencies": {
     "hap-nodejs-community-types": "https://github.com/homespun/hap-nodejs-community-types.git",
     "homespun-discovery": "0.2.0",
+    "lodash": "4.17.13",
     "netmask": "1.0.6",
     "underscore": "1.8.3",
     "uuid": "3.0.0",
