@@ -30,7 +30,7 @@
     "hap-nodejs-community-types": "git+https://github.com/homespun/hap-nodejs-community-types.git",
     "homespun-discovery": "0.2.0",
     "lodash": "4.17.19",
-    "netmask": "1.0.6",
+    "netmask": "2.0.1",
     "underscore": "1.8.3",
     "uuid": "3.0.0",
     "xml2js": "0.4.17",
